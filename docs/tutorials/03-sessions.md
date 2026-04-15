@@ -247,6 +247,35 @@ Useful for watching what a background agent is doing without attaching and
 potentially interrupting it. Peek shows the terminal; logs show the
 conversation.
 
+## How sessions end
+
+Sessions don't exit on their own. The provider process (Claude, Codex, etc.)
+runs inside a tmux pane and waits for input indefinitely. Gas City's controller
+is what actually terminates a session, and there are three ways that happens.
+
+**Drain-ack (agent-initiated).** When an agent finishes its work, it signals
+the controller by running `gc runtime drain-ack`. This sets a flag the
+controller checks on its next reconcile tick. The controller then sends a stop
+signal to the session. This is the clean, expected exit path for polecat
+sessions — it's why polecat prompts end with a "done sequence" that includes
+`gc runtime drain-ack`.
+
+**Idle timeout (reconciler backstop).** If a session stops producing output for
+longer than its configured `idle_timeout`, the controller suspends it
+automatically. This is the fallback for sessions that finish their work but
+don't explicitly drain-ack, or for sessions that hit an unexpected dead end.
+The session bead is marked `asleep` and can be resumed later.
+
+**External drain.** A human (or another agent) can stop a session with
+`gc session suspend <name>` or `gc stop`. The controller sets a drain signal,
+waits for the agent to acknowledge it or for the drain timeout to expire, then
+stops the session.
+
+The latency between "agent calls `gc runtime drain-ack`" and "session is
+marked stopped" is up to one controller patrol interval (default 30 seconds).
+This is normal — the controller polls on a tick, it doesn't watch for the flag
+in real time.
+
 ## What's next
 
 You've seen how sessions are created on demand for slung work, how named

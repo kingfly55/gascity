@@ -81,6 +81,18 @@ overlay_dir = "overlays/reviewer"
 During expansion, Gas City rewrites these paths to absolute paths so
 they work regardless of which city references the pack.
 
+**Shared fragments are different.** Files placed in `prompts/shared/`
+are auto-discovered and registered as named Go templates that any
+top-level prompt can call with `{{ template "name" . }}`. Only files
+ending in `.md.tmpl` are loaded from this directory — any other
+extension is silently skipped.
+
+<Warning>
+If a shared fragment isn't rendering, check its filename. A file named
+`my-fragment.md` inside `prompts/shared/` will never be loaded.
+Rename it to `my-fragment.md.tmpl`.
+</Warning>
+
 ### Including formulas
 
 Add a `[formulas]` section to include a formula directory:

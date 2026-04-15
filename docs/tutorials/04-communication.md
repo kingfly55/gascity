@@ -95,6 +95,48 @@ That nudge does not deliver the mail by itself — it just wakes the mayor so a
 new turn starts. When the mayor wakes up or starts a new turn, hooks deliver
 any pending mail, and the nudge tells it to act on what it finds.
 
+## Mail and pooled agents
+
+Mail works well for singletons — the mayor, a witness, a named crew member.
+When there is exactly one running session for an agent, its name resolves
+unambiguously and the message arrives.
+
+Pool agents are different. If `my-project/reviewer` has three live sessions
+running simultaneously, sending mail to `my-project/reviewer` produces an
+**ambiguity error** — Gas City refuses to pick an arbitrary instance. Mail is
+addressed to sessions, not to agent types, and it has no broadcast or
+round-robin mode.
+
+<Warning>
+Sending mail to an agent type name when multiple instances of that type are
+running will fail with an error like:
+
+```
+ambiguous recipient "my-project/reviewer": matches reviewer-1, reviewer-2, reviewer-3
+```
+
+Use the instance's alias or session ID to reach a specific session.
+</Warning>
+
+For pool agents, the right coordination primitive is **slung work**, not mail.
+When the mayor wants `my-project/reviewer` to do something, it slings a bead:
+
+```shell
+gc sling my-project/reviewer "Review the auth module"
+```
+
+Gas City routes the bead to an available instance via pool scaling. The
+reviewer picks it up atomically — no ambiguity, no duplicate assignment. This
+is how pooled coordination is designed to work.
+
+Mail to a pool agent is still useful in one case: when you know the specific
+instance you need to reach (e.g., for escalation or handoff between specific
+sessions). In that case address it by alias or session ID:
+
+```shell
+gc mail send reviewer-2 -s "HANDOFF" -m "Resume the auth branch from where I left off"
+```
+
 ## Slinging beads to coordinate agents
 
 Here's what coordination looks like in practice. Once the mayor takes a turn, it
